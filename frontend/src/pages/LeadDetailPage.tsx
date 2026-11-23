@@ -114,6 +114,7 @@ export function LeadDetailPage() {
     'assign' | 'stage' | 'close' | 'reopen' | 'interaction' | 'requirement' | 'task' | 'visit' | null
   >(null);
   const [matchTarget, setMatchTarget] = useState<Requirement | null>(null);
+  const [tab, setTab] = useState<'overview' | 'requirements' | 'activity' | 'visits' | 'history'>('overview');
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -212,69 +213,173 @@ export function LeadDetailPage() {
         </div>
       )}
 
-      <div className="list-split">
-        <div className="section-stack">
-          <div className="card">
-            <div className="card-header">
-              <span className="card-title">Requirements</span>
-              <Button size="sm" variant="secondary" onClick={() => setDialog('requirement')}>Add requirement</Button>
-            </div>
-            <div className="card-body">
-              {lead.requirements.length === 0 ? (
-                <p className="subtle" style={{ margin: 0, fontSize: 13.5 }}>
-                  No requirements recorded yet.
-                </p>
-              ) : (
-                <div className="section-stack" style={{ gap: 14 }}>
-                  {lead.requirements.map((requirement) => (
-                    <div key={requirement.id} style={{ border: '1px solid var(--border)', borderRadius: 8, padding: 14 }}>
-                      <div className="row" style={{ justifyContent: 'space-between' }}>
-                        <strong style={{ fontSize: 13.5 }}>
-                          {humanise(requirement.intent)} · {requirement.bedrooms ?? 'Any configuration'}
-                        </strong>
-                        <Button size="sm" variant="ghost" onClick={() => setMatchTarget(requirement)}>
-                          Find matches
-                        </Button>
-                      </div>
-                      <div className="row" style={{ marginTop: 8, gap: 8 }}>
-                        <span className="chip">
-                          Budget {requirement.budgetMin ? formatPrice(requirement.budgetMin) : '—'} – {requirement.budgetMax ? formatPrice(requirement.budgetMax) : '—'}
-                        </span>
-                        {requirement.locations && <span className="chip">{requirement.locations}</span>}
-                        {requirement.propertyType && <span className="chip">{requirement.propertyType}</span>}
-                        {requirement.timeframe && <span className="chip">{requirement.timeframe}</span>}
-                        <span className="chip">{requirement.shortlist.length} shortlisted</span>
-                      </div>
-                      {requirement.notes && (
-                        <p className="subtle" style={{ margin: '10px 0 0', fontSize: 13 }}>{requirement.notes}</p>
-                      )}
+      <div className="card" style={{ marginBottom: 0 }}>
+        <div className="tabs" role="tablist">
+          {([
+            ['overview', 'Overview'],
+            ['requirements', `Requirements (${lead.requirements.length})`],
+            ['activity', `Activity (${lead.interactions.length})`],
+            ['visits', `Follow-ups & visits (${lead.tasks.length}/${lead.siteVisits.length})`],
+            ['history', 'History'],
+          ] as const).map(([key, label]) => (
+            <button
+              key={key}
+              type="button"
+              role="tab"
+              aria-selected={tab === key}
+              className={tab === key ? 'tab active' : 'tab'}
+              onClick={() => setTab(key)}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        <div className="card-body">
+          {tab === 'overview' && (
+            <div className="section-stack">
+              <div className="detail-grid">
+                <div><div className="detail-label">Contact</div><div className="detail-value strong">{lead.contactName ?? '—'}</div></div>
+                <div><div className="detail-label">Phone</div><div className="detail-value">{lead.phone}</div></div>
+                <div><div className="detail-label">Email</div><div className="detail-value">{lead.email}</div></div>
+                <div><div className="detail-label">Location</div><div className="detail-value">{lead.location}</div></div>
+                <div><div className="detail-label">Owner</div><div className="detail-value">{lead.assignedToName ?? 'Unassigned'}</div></div>
+                <div><div className="detail-label">Source</div><div className="detail-value">{lead.source ?? '—'}</div></div>
+                <div><div className="detail-label">Budget</div><div className="detail-value">{lead.budget ?? '—'}</div></div>
+                <div><div className="detail-label">Bedrooms</div><div className="detail-value">{lead.bedrooms ?? '—'}</div></div>
+                <div><div className="detail-label">Property type</div><div className="detail-value">{lead.propertyType ?? '—'}</div></div>
+                <div><div className="detail-label">Created</div><div className="detail-value">{formatDateTime(lead.createdAt)}</div></div>
+                <div><div className="detail-label">Reopened</div><div className="detail-value">{lead.reopenCount > 0 ? `${lead.reopenCount}×` : 'Never'}</div></div>
+                <div><div className="detail-label">Closed</div><div className="detail-value">{lead.closedAt ? formatDateTime(lead.closedAt) : '—'}</div></div>
+              </div>
+
+              {lead.selectedProperty && (
+                <>
+                  <div className="divider" />
+                  <div>
+                    <div className="detail-label">Selected property</div>
+                    <div className="detail-value">
+                      <Link to={`/properties/${lead.selectedProperty.id}`}>
+                        {lead.selectedProperty.address}, {lead.selectedProperty.city}
+                      </Link>
                     </div>
-                  ))}
+                  </div>
+                </>
+              )}
+
+              {lead.message && (
+                <>
+                  <div className="divider" />
+                  <div>
+                    <div className="detail-label">Notes</div>
+                    <p style={{ margin: '4px 0 0', fontSize: 13.5, color: 'var(--text-2)' }}>{lead.message}</p>
+                  </div>
+                </>
+              )}
+
+              <div className="divider" />
+
+              <div className="list-split">
+                <div>
+                  <div className="section-title">Next follow-ups</div>
+                  {lead.tasks.length === 0 ? (
+                    <p className="subtle" style={{ margin: 0, fontSize: 13.5 }}>No open follow-ups.</p>
+                  ) : (
+                    lead.tasks.slice(0, 4).map((task) => (
+                      <div key={task.id} className="row" style={{ justifyContent: 'space-between', padding: '7px 0', borderBottom: '1px solid var(--border)' }}>
+                        <span style={{ fontSize: 13.5 }}>{task.title}</span>
+                        <span style={{ fontSize: 12.5, color: task.overdue ? 'var(--danger)' : 'var(--text-3)' }}>{relativeTime(task.dueAt)}</span>
+                      </div>
+                    ))
+                  )}
                 </div>
+                <div>
+                  <div className="section-title">Recent activity</div>
+                  {lead.interactions.length === 0 ? (
+                    <p className="subtle" style={{ margin: 0, fontSize: 13.5 }}>No activity recorded.</p>
+                  ) : (
+                    lead.interactions.slice(0, 4).map((interaction) => (
+                      <div key={interaction.id} style={{ padding: '7px 0', borderBottom: '1px solid var(--border)' }}>
+                        <div style={{ fontSize: 13.5 }}>{interaction.summary}</div>
+                        <div className="subtle" style={{ fontSize: 12.5 }}>{humanise(interaction.type)} · {formatDateTime(interaction.occurredAt)}</div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {tab === 'requirements' && (
+            <div className="section-stack">
+              <div className="row" style={{ justifyContent: 'space-between' }}>
+                <div className="section-title" style={{ margin: 0 }}>Requirements</div>
+                <Button size="sm" variant="secondary" onClick={() => setDialog('requirement')}>Add requirement</Button>
+              </div>
+
+              {lead.requirements.length === 0 ? (
+                <p className="subtle" style={{ margin: 0, fontSize: 13.5 }}>No requirements recorded yet.</p>
+              ) : (
+                lead.requirements.map((requirement) => (
+                  <div key={requirement.id} style={{ border: '1px solid var(--border)', borderRadius: 6, padding: 14 }}>
+                    <div className="row" style={{ justifyContent: 'space-between' }}>
+                      <strong style={{ fontSize: 14 }}>
+                        {humanise(requirement.intent)} · {requirement.bedrooms ?? 'Any configuration'}
+                      </strong>
+                      <Button size="sm" variant="secondary" onClick={() => setMatchTarget(requirement)}>
+                        Find matches
+                      </Button>
+                    </div>
+                    <div className="row" style={{ marginTop: 8, gap: 6 }}>
+                      <span className="chip">
+                        {requirement.budgetMin ? formatPrice(requirement.budgetMin) : '—'} – {requirement.budgetMax ? formatPrice(requirement.budgetMax) : '—'}
+                      </span>
+                      {requirement.locations && <span className="chip">{requirement.locations}</span>}
+                      {requirement.propertyType && <span className="chip">{requirement.propertyType}</span>}
+                      {requirement.timeframe && <span className="chip">{requirement.timeframe}</span>}
+                      <span className="chip" style={{ borderColor: 'var(--blue-100)', background: 'var(--blue-50)', color: 'var(--blue-700)' }}>
+                        {requirement.shortlist.length} shortlisted
+                      </span>
+                    </div>
+                    {requirement.notes && (
+                      <p className="subtle" style={{ margin: '10px 0 0', fontSize: 13 }}>{requirement.notes}</p>
+                    )}
+                    {requirement.shortlist.length > 0 && (
+                      <div className="row" style={{ marginTop: 10, gap: 6 }}>
+                        <span className="subtle" style={{ fontSize: 12.5 }}>Shortlisted:</span>
+                        {requirement.shortlist.map((propertyId) => (
+                          <Link key={propertyId} to={`/properties/${propertyId}`} className="chip">
+                            Property #{propertyId}
+                          </Link>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))
               )}
             </div>
-          </div>
+          )}
 
-          <div className="card">
-            <div className="card-header">
-              <span className="card-title">Activity timeline</span>
-              <Button size="sm" variant="secondary" onClick={() => setDialog('interaction')}>Log interaction</Button>
-            </div>
-            <div className="card-body">
+          {tab === 'activity' && (
+            <div>
+              <div className="row" style={{ justifyContent: 'space-between', marginBottom: 12 }}>
+                <div className="section-title" style={{ margin: 0 }}>Interaction timeline</div>
+                <Button size="sm" variant="secondary" onClick={() => setDialog('interaction')}>Log interaction</Button>
+              </div>
               {lead.interactions.length === 0 ? (
                 <p className="subtle" style={{ margin: 0, fontSize: 13.5 }}>No activity recorded yet.</p>
               ) : (
                 lead.interactions.map((interaction) => (
                   <div className="timeline-item" key={interaction.id}>
                     <div className="timeline-meta">
-                      <div style={{ fontWeight: 600, color: 'var(--text-muted)' }}>{humanise(interaction.type)}</div>
+                      <div style={{ fontWeight: 600, color: 'var(--text-2)' }}>{humanise(interaction.type)}</div>
                       <div>{formatDateTime(interaction.occurredAt)}</div>
                       {interaction.createdByName && <div>{interaction.createdByName}</div>}
                     </div>
                     <div>
                       <div style={{ fontSize: 13.5 }}>{interaction.summary}</div>
                       {interaction.outcome && (
-                        <div className="subtle" style={{ fontSize: 12.5, marginTop: 4 }}>Outcome: {interaction.outcome}</div>
+                        <div className="subtle" style={{ fontSize: 12.5, marginTop: 3 }}>Outcome: {interaction.outcome}</div>
                       )}
                       {interaction.nextAction && (
                         <div className="subtle" style={{ fontSize: 12.5, marginTop: 2 }}>Next: {interaction.nextAction}</div>
@@ -284,101 +389,94 @@ export function LeadDetailPage() {
                 ))
               )}
             </div>
-          </div>
-        </div>
+          )}
 
-        <div className="section-stack">
-          <div className="card">
-            <div className="card-header">
-              <span className="card-title">Follow-ups</span>
-              <Button size="sm" variant="secondary" onClick={() => setDialog('task')}>Add task</Button>
-            </div>
-            <div className="card-body">
-              {lead.tasks.length === 0 ? (
-                <p className="subtle" style={{ margin: 0, fontSize: 13.5 }}>No open follow-ups.</p>
-              ) : (
-                lead.tasks.map((task) => (
-                  <div key={task.id} className="row" style={{ justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--border)' }}>
-                    <div>
-                      <div style={{ fontSize: 13.5 }}>{task.title}</div>
-                      <div className="subtle" style={{ fontSize: 12.5, color: task.overdue ? 'var(--danger)' : undefined }}>
-                        due {relativeTime(task.dueAt)}
+          {tab === 'visits' && (
+            <div className="list-split">
+              <div>
+                <div className="row" style={{ justifyContent: 'space-between', marginBottom: 10 }}>
+                  <div className="section-title" style={{ margin: 0 }}>Follow-ups</div>
+                  <Button size="sm" variant="secondary" onClick={() => setDialog('task')}>Add task</Button>
+                </div>
+                {lead.tasks.length === 0 ? (
+                  <p className="subtle" style={{ margin: 0, fontSize: 13.5 }}>No open follow-ups.</p>
+                ) : (
+                  lead.tasks.map((task) => (
+                    <div key={task.id} className="row" style={{ justifyContent: 'space-between', padding: '9px 0', borderBottom: '1px solid var(--border)' }}>
+                      <div>
+                        <div style={{ fontSize: 13.5 }}>{task.title}</div>
+                        <div className="subtle" style={{ fontSize: 12.5, color: task.overdue ? 'var(--danger)' : undefined }}>
+                          due {relativeTime(task.dueAt)}
+                        </div>
                       </div>
+                      <Button size="sm" variant="secondary" onClick={() => void completeTask(task.id)}>Complete</Button>
                     </div>
-                    <Button size="sm" variant="ghost" onClick={() => void completeTask(task.id)}>Complete</Button>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-
-          <div className="card">
-            <div className="card-header">
-              <span className="card-title">Site visits</span>
-              <Button size="sm" variant="secondary" onClick={() => setDialog('visit')}>Schedule</Button>
-            </div>
-            <div className="card-body">
-              {lead.siteVisits.length === 0 ? (
-                <p className="subtle" style={{ margin: 0, fontSize: 13.5 }}>No site visits yet.</p>
-              ) : (
-                lead.siteVisits.map((visit) => (
-                  <div key={visit.id} style={{ padding: '8px 0', borderBottom: '1px solid var(--border)' }}>
-                    <div className="row" style={{ justifyContent: 'space-between' }}>
-                      <span style={{ fontSize: 13.5 }}>{formatDateTime(visit.scheduledAt)}</span>
-                      <Badge tone={visit.status === 'COMPLETED' ? 'success' : visit.status === 'SCHEDULED' ? 'primary' : 'danger'}>
-                        {humanise(visit.status)}
-                      </Badge>
-                    </div>
-                    {visit.feedback && <div className="subtle" style={{ fontSize: 12.5, marginTop: 4 }}>{visit.feedback}</div>}
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-
-          <div className="card">
-            <div className="card-header"><span className="card-title">Details</span></div>
-            <div className="card-body">
-              <div className="detail-grid" style={{ gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-                <div><div className="detail-label">Owner</div><div className="detail-value">{lead.assignedToName ?? 'Unassigned'}</div></div>
-                <div><div className="detail-label">Source</div><div className="detail-value">{lead.source ?? '—'}</div></div>
-                <div><div className="detail-label">Contact</div><div className="detail-value">{lead.contactName ?? '—'}</div></div>
-                <div><div className="detail-label">Created</div><div className="detail-value">{formatDateTime(lead.createdAt)}</div></div>
-                <div><div className="detail-label">Budget</div><div className="detail-value">{lead.budget ?? '—'}</div></div>
-                <div><div className="detail-label">Bedrooms</div><div className="detail-value">{lead.bedrooms ?? '—'}</div></div>
-                {lead.selectedProperty && (
-                  <div style={{ gridColumn: '1 / -1' }}>
-                    <div className="detail-label">Selected property</div>
-                    <div className="detail-value">{lead.selectedProperty.address}, {lead.selectedProperty.city}</div>
-                  </div>
+                  ))
                 )}
               </div>
-              {lead.message && (
-                <>
-                  <div className="divider" />
-                  <p className="subtle" style={{ margin: 0, fontSize: 13 }}>{lead.message}</p>
-                </>
-              )}
-            </div>
-          </div>
 
-          <div className="card">
-            <div className="card-header"><span className="card-title">Stage history</span></div>
-            <div className="card-body" style={{ maxHeight: 260, overflowY: 'auto' }}>
-              {lead.stageHistory.map((entry) => (
-                <div key={entry.id} className="timeline-item" style={{ gridTemplateColumns: '1fr', gap: 2 }}>
-                  <div style={{ fontSize: 13 }}>
-                    {entry.fromStage ? `${humanise(entry.fromStage)} → ` : ''}
-                    <strong>{humanise(entry.toStage)}</strong>
-                  </div>
-                  <div className="timeline-meta">
-                    {formatDateTime(entry.changedAt)}{entry.changedBy ? ` · ${entry.changedBy}` : ''}
-                  </div>
-                  {entry.reason && <div className="timeline-meta">{entry.reason}</div>}
+              <div>
+                <div className="row" style={{ justifyContent: 'space-between', marginBottom: 10 }}>
+                  <div className="section-title" style={{ margin: 0 }}>Site visits</div>
+                  <Button size="sm" variant="secondary" onClick={() => setDialog('visit')}>Schedule</Button>
                 </div>
-              ))}
+                {lead.siteVisits.length === 0 ? (
+                  <p className="subtle" style={{ margin: 0, fontSize: 13.5 }}>No site visits yet.</p>
+                ) : (
+                  lead.siteVisits.map((visit) => (
+                    <div key={visit.id} style={{ padding: '9px 0', borderBottom: '1px solid var(--border)' }}>
+                      <div className="row" style={{ justifyContent: 'space-between' }}>
+                        <span style={{ fontSize: 13.5 }}>{formatDateTime(visit.scheduledAt)}</span>
+                        <Badge tone={visit.status === 'COMPLETED' ? 'success' : visit.status === 'SCHEDULED' ? 'primary' : 'danger'}>
+                          {humanise(visit.status)}
+                        </Badge>
+                      </div>
+                      {visit.feedback && <div className="subtle" style={{ fontSize: 12.5, marginTop: 3 }}>{visit.feedback}</div>}
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
-          </div>
+          )}
+
+          {tab === 'history' && (
+            <div className="list-split">
+              <div>
+                <div className="section-title">Stage history</div>
+                {lead.stageHistory.map((entry) => (
+                  <div key={entry.id} style={{ padding: '9px 0', borderBottom: '1px solid var(--border)' }}>
+                    <div style={{ fontSize: 13 }}>
+                      {entry.fromStage ? `${humanise(entry.fromStage)} → ` : ''}
+                      <strong>{humanise(entry.toStage)}</strong>
+                    </div>
+                    <div className="timeline-meta">
+                      {formatDateTime(entry.changedAt)}{entry.changedBy ? ` · ${entry.changedBy}` : ''}
+                    </div>
+                    {entry.reason && <div className="timeline-meta">{entry.reason}</div>}
+                  </div>
+                ))}
+              </div>
+
+              <div>
+                <div className="section-title">Assignment history</div>
+                {lead.assignments.length === 0 ? (
+                  <p className="subtle" style={{ margin: 0, fontSize: 13.5 }}>Never assigned.</p>
+                ) : (
+                  lead.assignments.map((assignment) => (
+                    <div key={assignment.id} style={{ padding: '9px 0', borderBottom: '1px solid var(--border)' }}>
+                      <div style={{ fontSize: 13 }}>
+                        {assignment.assignedToName ?? assignment.assignedTo}
+                        {assignment.endedAt ? '' : ' · current'}
+                      </div>
+                      <div className="timeline-meta">
+                        {formatDateTime(assignment.assignedAt)} → {assignment.endedAt ? formatDateTime(assignment.endedAt) : 'present'}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

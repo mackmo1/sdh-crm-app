@@ -342,119 +342,83 @@ export function PropertyListPage() {
           />
         ) : result ? (
           <>
-            <div className="table-scroll">
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>Property</th>
-                    <th>Listing</th>
-                    <th>Configuration</th>
-                    <th>Price</th>
-                    <th>Project</th>
-                    <th>Publication</th>
-                    <th>Availability</th>
-                    <th>Updated</th>
-                    <th aria-label="Actions" />
-                  </tr>
-                </thead>
-                <tbody>
-                  {result.data.map((property) => {
-                    const archived = property.publicationStatus === 'ARCHIVED';
-                    return (
-                      <tr
-                        key={property.id}
-                        className="clickable"
-                        onClick={() => navigate(`/properties/${property.id}`)}
-                      >
-                        <td>
-                          <Link
-                            to={`/properties/${property.id}`}
-                            className="cell-primary"
-                            onClick={(event) => event.stopPropagation()}
-                          >
-                            {property.address}
-                          </Link>
-                          <span className="cell-secondary">{property.city}</span>
-                        </td>
-                        <td>
-                          {property.listingType ? LISTING_LABEL[property.listingType] : '—'}
-                          {property.type ? (
-                            <span className="cell-secondary"> · {property.type}</span>
-                          ) : null}
-                        </td>
-                        <td>{property.rooms}</td>
-                        <td>{formatPrice(property.price)}</td>
-                        <td>
-                          {property.projectName ?? <span className="subtle">—</span>}
-                          {property.unitIdentifier ? (
-                            <span className="cell-secondary"> · {property.unitIdentifier}</span>
-                          ) : null}
-                        </td>
-                        <td>
-                          <Badge tone={PUBLICATION_TONE[property.publicationStatus]}>
-                            {PUBLICATION_LABEL[property.publicationStatus]}
-                          </Badge>
-                        </td>
-                        <td>
-                          <Badge tone={AVAILABILITY_TONE[property.availabilityStatus]}>
-                            {AVAILABILITY_LABEL[property.availabilityStatus]}
-                          </Badge>
-                        </td>
-                        <td>
-                          <span className="cell-secondary">{relativeTime(property.updatedAt)}</span>
-                        </td>
-                        <td onClick={(event) => event.stopPropagation()}>
-                          <div className="cell-actions">
-                            {archived ? (
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => openAction('restore', property)}
-                              >
-                                Restore
+            <div className="property-list">
+              {result.data.map((property) => {
+                const archived = property.publicationStatus === 'ARCHIVED';
+                return (
+                  <article key={property.id} className="property-card">
+                    <div className="property-thumb" aria-hidden="true">
+                      <span className="property-thumb-label">{property.listingType ? LISTING_LABEL[property.listingType] : 'Listing'}</span>
+                    </div>
+
+                    <div className="property-main">
+                      <div>
+                        <Link to={`/properties/${property.id}`} className="property-title">
+                          {property.address}
+                        </Link>
+                        <div className="property-meta">
+                          <span>{property.city}</span>
+                          {property.projectName && <span>{property.projectName}</span>}
+                          {property.unitIdentifier && <span>Unit {property.unitIdentifier}</span>}
+                        </div>
+                      </div>
+
+                      <div className="property-meta">
+                        <span><strong>{property.rooms}</strong></span>
+                        {property.type && <span>{property.type}</span>}
+                        {property.area !== null && <span>{property.area} sq ft</span>}
+                        {property.bathrooms !== null && <span>{property.bathrooms} bath</span>}
+                        {property.facing && <span>{property.facing} facing</span>}
+                      </div>
+
+                      <div className="property-tags">
+                        <Badge tone={PUBLICATION_TONE[property.publicationStatus]}>
+                          {PUBLICATION_LABEL[property.publicationStatus]}
+                        </Badge>
+                        <Badge tone={AVAILABILITY_TONE[property.availabilityStatus]}>
+                          {AVAILABILITY_LABEL[property.availabilityStatus]}
+                        </Badge>
+                        <span className="chip">Updated {relativeTime(property.updatedAt)}</span>
+                      </div>
+                    </div>
+
+                    <div className="property-side">
+                      <div>
+                        <div className="property-price">{formatPrice(property.price)}</div>
+                        <div className="property-price-note">
+                          {property.listingType === 'RENT' ? 'per month' : 'asking price'}
+                        </div>
+                      </div>
+
+                      <div className="property-actions">
+                        {archived ? (
+                          <Button size="sm" variant="secondary" onClick={() => openAction('restore', property)}>
+                            Restore
+                          </Button>
+                        ) : (
+                          <>
+                            {property.publicationStatus === 'PUBLISHED' ? (
+                              <Button size="sm" variant="secondary" onClick={() => openAction('unpublish', property)}>
+                                Unpublish
                               </Button>
                             ) : (
-                              <>
-                                {property.publicationStatus === 'PUBLISHED' ? (
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    onClick={() => openAction('unpublish', property)}
-                                  >
-                                    Unpublish
-                                  </Button>
-                                ) : (
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    onClick={() => openAction('publish', property)}
-                                  >
-                                    Publish
-                                  </Button>
-                                )}
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  onClick={() => navigate(`/properties/${property.id}/edit`)}
-                                >
-                                  Edit
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="danger-ghost"
-                                  onClick={() => openAction('archive', property)}
-                                >
-                                  Archive
-                                </Button>
-                              </>
+                              <Button size="sm" variant="primary" onClick={() => openAction('publish', property)}>
+                                Publish
+                              </Button>
                             )}
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                            <Button size="sm" variant="ghost" onClick={() => navigate(`/properties/${property.id}/edit`)}>
+                              Edit
+                            </Button>
+                            <Button size="sm" variant="danger-ghost" onClick={() => openAction('archive', property)}>
+                              Archive
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </article>
+                );
+              })}
             </div>
 
             <Pagination
