@@ -79,7 +79,7 @@ export function AppShell() {
             <span className="brand-mark" aria-hidden="true">
               S3
             </span>
-            <span>
+            <span className="brand-text">
               <span className="brand-name">Step360D</span>
               <span className="brand-sub">CRM &amp; Admin</span>
             </span>

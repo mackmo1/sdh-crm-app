@@ -8,7 +8,7 @@ export function AuthLayout({ children }: { children: ReactNode }) {
           <div className="brand-mark" aria-hidden="true">
             S3
           </div>
-          <div>
+          <div className="brand-text">
             <div className="brand-name">Step360D</div>
             <div className="brand-sub">CRM &amp; Admin</div>
           </div>

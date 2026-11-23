@@ -131,6 +131,13 @@ a:hover {
   gap: 10px;
 }
 
+.brand-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  line-height: 1.15;
+}
+
 .metric:hover {
   background: var(--blue-50);
 }
@@ -184,7 +191,7 @@ a:hover {
   height: 34px;
   border: 0;
   border-radius: var(--r-sm);
-  padding: 0 12px 0 34px;
+  padding: 0 32px 0 12px;
   font: inherit;
   font-size: 13.5px;
   color: var(--text);
@@ -197,7 +204,7 @@ a:hover {
 
 .header-search .search-icon {
   position: absolute;
-  left: 11px;
+  right: 11px;
   top: 50%;
   transform: translateY(-50%);
   color: var(--text-3);
