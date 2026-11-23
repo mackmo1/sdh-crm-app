@@ -119,6 +119,10 @@ model Property {
   rent         RentProperty?
   archiveEvents PropertyArchive[]
 
+  leadsSelected       Lead[]
+  requirementShortlist RequirementProperty[]
+  siteVisits          SiteVisit[]
+
   @@unique([project_id, unit_identifier])
   @@index([publication_status, listing_type, availability_status])
   @@index([project_id])
@@ -236,4 +240,278 @@ model CrmPasswordResetToken {
 
   @@index([crm_user_id])
   @@map("Crm_PasswordResetToken")
+}
+
+// ---------------------------------------------------------------------------
+// Phase 2 — CRM
+// ---------------------------------------------------------------------------
+
+enum ContactCategory {
+  BUYER
+  SELLER
+  LANDLORD
+  TENANT
+  BUILDER
+}
+
+enum LeadStage {
+  NEW
+  CONTACTED
+  QUALIFIED
+  SITE_VISIT
+  NEGOTIATION
+  ON_HOLD
+  WON
+  LOST
+}
+
+enum LeadPriority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum RequirementIntent {
+  BUY
+  SELL
+  RENT
+}
+
+enum InteractionType {
+  CALL
+  MEETING
+  MESSAGE
+  EMAIL
+  NOTE
+}
+
+enum TaskStatus {
+  OPEN
+  COMPLETED
+  CANCELLED
+}
+
+enum SiteVisitStatus {
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+enum ClosureOutcome {
+  SALE
+  RENT
+  LOST
+}
+
+/// Enquiries captured by the public website. Extended additively for the CRM;
+/// the website's own columns are preserved and still written by the site.
+model Lead {
+  id            BigInt   @id @default(autoincrement())
+  created_at    DateTime @default(now()) @db.Timestamptz(6)
+  who           String   @db.VarChar
+  intent        String   @db.VarChar
+  property_type String?  @db.VarChar
+  agent         String?  @db.VarChar
+  status        String?  @db.VarChar
+  name          String?  @db.VarChar
+  phone         String   @db.VarChar
+  email_id      String   @db.VarChar
+  location      String   @db.VarChar
+  message       String?
+  budget        String?  @db.VarChar
+  pin_no        String?  @db.VarChar
+  address       String?  @db.VarChar
+  bedrooms      String?  @db.VarChar
+
+  contact_id          BigInt?
+  assigned_to         String?       @db.VarChar
+  source              String?       @db.VarChar
+  priority            LeadPriority  @default(MEDIUM)
+  stage               LeadStage     @default(NEW)
+  on_hold_reason      String?
+  selected_property_id BigInt?
+  closed_at           DateTime?     @db.Timestamptz(6)
+  closure_outcome     ClosureOutcome?
+  loss_reason         String?
+  reopen_count        Int           @default(0)
+  updated_at          DateTime      @default(now()) @updatedAt @db.Timestamptz(6)
+
+  contact           Contact?  @relation(fields: [contact_id], references: [id], onDelete: SetNull)
+  selected_property Property? @relation(fields: [selected_property_id], references: [id], onDelete: SetNull)
+
+  requirements Requirement[]
+  interactions Interaction[]
+  tasks        FollowUpTask[]
+  siteVisits   SiteVisit[]
+  stageHistory LeadStageHistory[]
+  assignments  LeadAssignment[]
+
+  @@index([stage])
+  @@index([assigned_to])
+  @@index([created_at])
+  @@index([contact_id])
+  @@map("Lead")
+}
+
+model Contact {
+  id         BigInt          @id @default(autoincrement())
+  name       String          @db.VarChar
+  email      String?         @db.VarChar
+  phone      String?         @db.VarChar
+  category   ContactCategory
+  company    String?         @db.VarChar
+  city       String?         @db.VarChar
+  address    String?
+  notes      String?
+  active     Boolean         @default(true)
+  created_by String?         @db.VarChar
+  created_at DateTime        @default(now()) @db.Timestamptz(6)
+  updated_at DateTime        @default(now()) @updatedAt @db.Timestamptz(6)
+
+  leads        Lead[]
+  interactions Interaction[]
+  tasks        FollowUpTask[]
+
+  @@index([category])
+  @@index([name])
+  @@index([phone])
+  @@map("crm_contact")
+}
+
+model Requirement {
+  id            BigInt            @id @default(autoincrement())
+  lead_id       BigInt
+  intent        RequirementIntent
+  budget_min    Decimal?          @db.Decimal
+  budget_max    Decimal?          @db.Decimal
+  locations     String?           @db.VarChar
+  property_type String?           @db.VarChar
+  bedrooms      String?           @db.VarChar
+  timeframe     String?           @db.VarChar
+  notes         String?
+  active        Boolean           @default(true)
+  created_by    String?           @db.VarChar
+  created_at    DateTime          @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime          @default(now()) @updatedAt @db.Timestamptz(6)
+
+  lead      Lead                 @relation(fields: [lead_id], references: [id], onDelete: Cascade)
+  shortlist RequirementProperty[]
+
+  @@index([lead_id])
+  @@map("crm_requirement")
+}
+
+model RequirementProperty {
+  requirement_id BigInt
+  property_id    BigInt
+  added_by       String?  @db.VarChar
+  added_at       DateTime @default(now()) @db.Timestamptz(6)
+
+  requirement Requirement @relation(fields: [requirement_id], references: [id], onDelete: Cascade)
+  property    Property    @relation(fields: [property_id], references: [id], onDelete: Restrict)
+
+  @@id([requirement_id, property_id])
+  @@index([property_id])
+  @@map("crm_requirement_property")
+}
+
+model Interaction {
+  id           BigInt          @id @default(autoincrement())
+  lead_id      BigInt?
+  contact_id   BigInt?
+  type         InteractionType
+  occurred_at  DateTime        @default(now()) @db.Timestamptz(6)
+  summary      String
+  outcome      String?
+  next_action  String?
+  created_by   String?         @db.VarChar
+  created_at   DateTime        @default(now()) @db.Timestamptz(6)
+
+  lead    Lead?    @relation(fields: [lead_id], references: [id], onDelete: Cascade)
+  contact Contact? @relation(fields: [contact_id], references: [id], onDelete: Cascade)
+
+  @@index([lead_id, occurred_at])
+  @@index([contact_id, occurred_at])
+  @@map("crm_interaction")
+}
+
+model FollowUpTask {
+  id               BigInt     @id @default(autoincrement())
+  title            String     @db.VarChar
+  description      String?
+  lead_id          BigInt?
+  contact_id       BigInt?
+  assigned_to      String?    @db.VarChar
+  due_at           DateTime   @db.Timestamptz(6)
+  status           TaskStatus @default(OPEN)
+  completed_at     DateTime?  @db.Timestamptz(6)
+  completion_notes String?
+  next_action      String?
+  created_by       String?    @db.VarChar
+  created_at       DateTime   @default(now()) @db.Timestamptz(6)
+  updated_at       DateTime   @default(now()) @updatedAt @db.Timestamptz(6)
+
+  lead    Lead?    @relation(fields: [lead_id], references: [id], onDelete: Cascade)
+  contact Contact? @relation(fields: [contact_id], references: [id], onDelete: Cascade)
+
+  @@index([status, due_at])
+  @@index([assigned_to])
+  @@index([lead_id])
+  @@map("crm_follow_up_task")
+}
+
+model SiteVisit {
+  id               BigInt          @id @default(autoincrement())
+  lead_id          BigInt
+  property_id      BigInt
+  assigned_to      String?         @db.VarChar
+  scheduled_at     DateTime        @db.Timestamptz(6)
+  status           SiteVisitStatus @default(SCHEDULED)
+  feedback         String?
+  next_steps       String?
+  rescheduled_from DateTime?       @db.Timestamptz(6)
+  reschedule_count Int             @default(0)
+  completed_at     DateTime?       @db.Timestamptz(6)
+  created_by       String?         @db.VarChar
+  created_at       DateTime        @default(now()) @db.Timestamptz(6)
+  updated_at       DateTime        @default(now()) @updatedAt @db.Timestamptz(6)
+
+  lead     Lead     @relation(fields: [lead_id], references: [id], onDelete: Cascade)
+  property Property @relation(fields: [property_id], references: [id], onDelete: Restrict)
+
+  @@index([status, scheduled_at])
+  @@index([lead_id])
+  @@index([property_id])
+  @@map("crm_site_visit")
+}
+
+model LeadStageHistory {
+  id         BigInt    @id @default(autoincrement())
+  lead_id    BigInt
+  from_stage LeadStage?
+  to_stage   LeadStage
+  reason     String?
+  changed_by String?   @db.VarChar
+  changed_at DateTime  @default(now()) @db.Timestamptz(6)
+
+  lead Lead @relation(fields: [lead_id], references: [id], onDelete: Cascade)
+
+  @@index([lead_id, changed_at])
+  @@map("crm_lead_stage_history")
+}
+
+model LeadAssignment {
+  id          BigInt    @id @default(autoincrement())
+  lead_id     BigInt
+  assigned_to String    @db.VarChar
+  assigned_by String?   @db.VarChar
+  assigned_at DateTime  @default(now()) @db.Timestamptz(6)
+  ended_at    DateTime? @db.Timestamptz(6)
+
+  lead Lead @relation(fields: [lead_id], references: [id], onDelete: Cascade)
+
+  @@index([lead_id, assigned_at])
+  @@index([assigned_to])
+  @@map("crm_lead_assignment")
 }

@@ -1,8 +1,18 @@
-import { useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { useState } from 'react';
 import { useAuth } from '../auth/AuthContext';
 import { initials } from '../lib/format';
 import { Button } from './ui';
+
+const NAV = [
+  { to: '/', label: 'Dashboard', end: true },
+  { to: '/properties', label: 'Properties' },
+  { to: '/leads', label: 'Leads' },
+  { to: '/contacts', label: 'Contacts' },
+  { to: '/follow-ups', label: 'Follow-ups' },
+  { to: '/site-visits', label: 'Site visits' },
+  { to: '/reports', label: 'Reports' },
+];
 
 export function AppShell() {
   const { user, logout } = useAuth();
@@ -33,13 +43,24 @@ export function AppShell() {
         </div>
 
         <nav className="nav" aria-label="Main">
-          <span className="nav-label">Workspace</span>
-          <NavLink
-            to="/properties"
-            className={({ isActive }) => (isActive ? 'nav-link active' : 'nav-link')}
-          >
-            Properties
-          </NavLink>
+          {NAV.map((item) => (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              end={item.end}
+              className={({ isActive }) => (isActive ? 'nav-link active' : 'nav-link')}
+            >
+              {item.label}
+            </NavLink>
+          ))}
+          {user?.role === 'admin' && (
+            <NavLink
+              to="/staff"
+              className={({ isActive }) => (isActive ? 'nav-link active' : 'nav-link')}
+            >
+              Staff
+            </NavLink>
+          )}
         </nav>
 
         <div className="sidebar-footer">

@@ -1,11 +1,27 @@
 import type {
   AvailabilityStatus,
+  Contact,
+  ContactCategory,
+  ContactDetail,
   CurrentUser,
+  DashboardData,
+  Interaction,
+  InteractionType,
+  LeadDetail,
+  LeadStage,
+  LeadSummary,
+  MatchResult,
   Paginated,
   Property,
   PropertyListQuery,
   PropertyPayload,
   ProjectSummary,
+  Requirement,
+  SiteVisit,
+  StaffMember,
+  StaffOption,
+  StaffPerformance,
+  Task,
 } from './types';
 
 const BASE = '/api';
@@ -139,6 +155,114 @@ export const api = {
         method: 'PATCH',
         body: JSON.stringify({ availabilityStatus }),
       }),
+  },
+
+
+  contacts: {
+    list: (params: { page?: number; pageSize?: number; search?: string; category?: ContactCategory; active?: string } = {}) =>
+      request<Paginated<Contact>>(`/contacts${toQuery(params)}`),
+    options: () => request<{ id: string; name: string; phone: string | null; category: ContactCategory }[]>('/contacts/options'),
+    get: (id: string) => request<ContactDetail>(`/contacts/${id}`),
+    create: (payload: Record<string, unknown>) =>
+      request<Contact>('/contacts', { method: 'POST', body: JSON.stringify(payload) }),
+    update: (id: string, payload: Record<string, unknown>) =>
+      request<Contact>(`/contacts/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
+  },
+
+  leads: {
+    list: (params: Record<string, string | number | undefined> = {}) =>
+      request<Paginated<LeadSummary>>(`/leads${toQuery(params)}`),
+    get: (id: string) => request<LeadDetail>(`/leads/${id}`),
+    create: (payload: Record<string, unknown>) =>
+      request<LeadDetail>('/leads', { method: 'POST', body: JSON.stringify(payload) }),
+    update: (id: string, payload: Record<string, unknown>) =>
+      request<LeadDetail>(`/leads/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
+    assign: (id: string, assignedTo: string) =>
+      request<LeadDetail>(`/leads/${id}/assign`, {
+        method: 'POST',
+        body: JSON.stringify({ assignedTo }),
+      }),
+    changeStage: (id: string, stage: LeadStage, onHoldReason?: string) =>
+      request<LeadDetail>(`/leads/${id}/stage`, {
+        method: 'POST',
+        body: JSON.stringify({ stage, onHoldReason }),
+      }),
+    close: (id: string, outcome: 'SALE' | 'RENT' | 'LOST', lossReason?: string, selectedPropertyId?: string) =>
+      request<LeadDetail>(`/leads/${id}/close`, {
+        method: 'POST',
+        body: JSON.stringify({ outcome, lossReason, selectedPropertyId }),
+      }),
+    reopen: (id: string, reason: string) =>
+      request<LeadDetail>(`/leads/${id}/reopen`, { method: 'POST', body: JSON.stringify({ reason }) }),
+    addInteraction: (id: string, payload: { type: InteractionType; summary: string; outcome?: string; nextAction?: string; occurredAt?: string }) =>
+      request<Interaction>(`/leads/${id}/interactions`, { method: 'POST', body: JSON.stringify(payload) }),
+    addRequirement: (id: string, payload: Record<string, unknown>) =>
+      request<Requirement>(`/leads/${id}/requirements`, { method: 'POST', body: JSON.stringify(payload) }),
+    updateRequirement: (id: string, requirementId: string, payload: Record<string, unknown>) =>
+      request<Requirement>(`/leads/${id}/requirements/${requirementId}`, {
+        method: 'PUT',
+        body: JSON.stringify(payload),
+      }),
+    deleteRequirement: (id: string, requirementId: string) =>
+      request<void>(`/leads/${id}/requirements/${requirementId}`, { method: 'DELETE' }),
+    matches: (id: string, requirementId: string) =>
+      request<{ data: MatchResult[] }>(`/leads/${id}/requirements/${requirementId}/matches`),
+    shortlist: (id: string, requirementId: string, propertyId: string) =>
+      request<Requirement>(`/leads/${id}/requirements/${requirementId}/shortlist`, {
+        method: 'POST',
+        body: JSON.stringify({ propertyId }),
+      }),
+    removeShortlist: (id: string, requirementId: string, propertyId: string) =>
+      request<Requirement>(`/leads/${id}/requirements/${requirementId}/shortlist/${propertyId}`, {
+        method: 'DELETE',
+      }),
+  },
+
+  tasks: {
+    list: (params: Record<string, string | number | undefined> = {}) =>
+      request<Paginated<Task>>(`/tasks${toQuery(params)}`),
+    create: (payload: Record<string, unknown>) =>
+      request<Task>('/tasks', { method: 'POST', body: JSON.stringify(payload) }),
+    update: (id: string, payload: Record<string, unknown>) =>
+      request<Task>(`/tasks/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
+    complete: (id: string, payload: { completionNotes?: string; nextAction?: string }) =>
+      request<Task>(`/tasks/${id}/complete`, { method: 'POST', body: JSON.stringify(payload) }),
+    cancel: (id: string) => request<Task>(`/tasks/${id}/cancel`, { method: 'POST' }),
+  },
+
+  siteVisits: {
+    list: (params: Record<string, string | number | undefined> = {}) =>
+      request<Paginated<SiteVisit>>(`/site-visits${toQuery(params)}`),
+    create: (payload: Record<string, unknown>) =>
+      request<SiteVisit>('/site-visits', { method: 'POST', body: JSON.stringify(payload) }),
+    reschedule: (id: string, scheduledAt: string, reason?: string) =>
+      request<SiteVisit>(`/site-visits/${id}/reschedule`, {
+        method: 'POST',
+        body: JSON.stringify({ scheduledAt, reason }),
+      }),
+    cancel: (id: string, reason?: string) =>
+      request<SiteVisit>(`/site-visits/${id}/cancel`, { method: 'POST', body: JSON.stringify({ feedback: reason }) }),
+    complete: (id: string, payload: { feedback?: string; nextSteps?: string }) =>
+      request<SiteVisit>(`/site-visits/${id}/complete`, { method: 'POST', body: JSON.stringify(payload) }),
+    noShow: (id: string, payload: { feedback?: string }) =>
+      request<SiteVisit>(`/site-visits/${id}/no-show`, { method: 'POST', body: JSON.stringify(payload) }),
+  },
+
+  dashboard: {
+    overview: (params: { from?: string; to?: string; city?: string } = {}) =>
+      request<DashboardData>(`/dashboard${toQuery(params)}`),
+    staffReport: (params: { from?: string; to?: string; city?: string } = {}) =>
+      request<StaffPerformance[]>(`/reports/staff${toQuery(params)}`),
+  },
+
+  staff: {
+    list: (params: { page?: number; pageSize?: number; search?: string; active?: string } = {}) =>
+      request<Paginated<StaffMember>>(`/staff${toQuery(params)}`),
+    options: () => request<StaffOption[]>('/staff-directory'),
+    create: (payload: Record<string, unknown>) =>
+      request<StaffMember>('/staff', { method: 'POST', body: JSON.stringify(payload) }),
+    update: (id: string, payload: Record<string, unknown>) =>
+      request<StaffMember>(`/staff/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
   },
 
   projects: {
