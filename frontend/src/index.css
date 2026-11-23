@@ -1196,3 +1196,102 @@ a:hover {
     grid-template-columns: 1fr;
   }
 }
+
+/* ---------------------------------------------------------------- board */
+
+.board {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(220px, 1fr));
+  gap: 12px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+}
+
+.board-column {
+  background: var(--surface-muted);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  display: flex;
+  flex-direction: column;
+  min-height: 320px;
+}
+
+.board-column.over {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+}
+
+.board-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  font-size: 12.5px;
+  font-weight: 650;
+  color: var(--text-muted);
+}
+
+.board-body {
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+}
+
+.board-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 11px;
+  box-shadow: var(--shadow-sm);
+  cursor: grab;
+}
+
+.board-card:active {
+  cursor: grabbing;
+}
+
+.board-name {
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--text);
+}
+
+.board-name:hover {
+  color: var(--primary);
+  text-decoration: none;
+}
+
+.board-meta {
+  font-size: 12px;
+  color: var(--text-subtle);
+  margin-top: 2px;
+}
+
+.board-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.board-due {
+  font-size: 11.5px;
+  color: var(--text-subtle);
+}
+
+.board-empty {
+  font-size: 12.5px;
+  color: var(--text-subtle);
+  text-align: center;
+  padding: 18px 0;
+}
+
+@media (max-width: 1100px) {
+  .board {
+    grid-template-columns: repeat(6, 240px);
+  }
+}

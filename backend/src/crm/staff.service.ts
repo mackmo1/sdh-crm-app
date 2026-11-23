@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { z } from 'zod';
 import { PrismaService } from '../prisma/prisma.module.js';
+import { ChangeHistoryService } from './change-history.service.js';
 import { hashPassword } from '../auth/password.js';
 import { buildMeta, pageSchema } from './crm.helpers.js';
 
@@ -36,7 +37,10 @@ export const staffListQuerySchema = z.object({
 
 @Injectable()
 export class StaffService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly history: ChangeHistoryService,
+  ) {}
 
   async list(query: z.infer<typeof staffListQuerySchema>) {
     const where = {
@@ -111,6 +115,14 @@ export class StaffService {
       return created;
     });
 
+    await this.history.record({
+      entityType: 'staff',
+      entityId: user.id,
+      action: 'created',
+      summary: `Staff account "${user.name}" created with role ${user.role} and module ${user.module}`,
+      actorId: null,
+    });
+
     return this.toDto(user);
   }
 
@@ -169,6 +181,20 @@ export class StaffService {
       }
 
       return updated;
+    });
+
+    await this.history.record({
+      entityType: 'staff',
+      entityId: id,
+      action: 'updated',
+      summary: `Staff account "${user.name}" updated`,
+      changes: {
+        role: input.role ?? null,
+        module: input.module ?? null,
+        active: input.active ?? null,
+        passwordChanged: Boolean(input.password),
+      },
+      actorId,
     });
 
     return this.toDto(user);

@@ -61,6 +61,7 @@ export interface ProjectSummary {
   city: string | null;
   address: string | null;
   externalId: string | null;
+  archived: boolean;
   unitCount: number;
   availableCount: number;
 }
@@ -335,3 +336,48 @@ export interface MatchResult {
   availabilityStatus: AvailabilityStatus;
   shortlisted: boolean;
 }
+
+export interface ProjectDetail {
+  id: string;
+  name: string | null;
+  city: string | null;
+  address: string | null;
+  externalId: string | null;
+  googleLocation: string | null;
+  overviewArea: string | null;
+  rooms: string | null;
+  areaSqft: string | null;
+  priceRange: string | null;
+  usp: string | null;
+  nearBy: string | null;
+  archived: boolean;
+  archivedAt: string | null;
+  createdAt: string;
+  summary: {
+    unitCount: number;
+    byAvailability: { availabilityStatus: AvailabilityStatus; count: number }[];
+    byConfiguration: { configuration: string; count: number }[];
+    byListingType: { listingType: ListingType | null; count: number }[];
+    siteVisits: number;
+  };
+}
+
+export interface ImportIssue {
+  index: number;
+  values: Record<string, string>;
+  errors: string[];
+  duplicateOf: string | null;
+}
+
+export interface ImportPreview {
+  entity: string;
+  headers: string[];
+  totalRows: number;
+  validRows: number;
+  duplicateRows: number;
+  invalidRows: number;
+  issues: ImportIssue[];
+  preview: Record<string, string>[];
+}
+
+export type ImportEntity = 'properties' | 'projects' | 'contacts' | 'leads';

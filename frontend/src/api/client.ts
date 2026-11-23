@@ -12,10 +12,14 @@ import type {
   LeadSummary,
   MatchResult,
   Paginated,
+  PaginationMeta,
   Property,
   PropertyListQuery,
   PropertyPayload,
+  ProjectDetail,
   ProjectSummary,
+  ImportEntity,
+  ImportPreview,
   Requirement,
   SiteVisit,
   StaffMember,
@@ -266,7 +270,37 @@ export const api = {
   },
 
   projects: {
-    list: (params: { search?: string; page?: number; pageSize?: number } = {}) =>
+    list: (params: { search?: string; page?: number; pageSize?: number; includeArchived?: string } = {}) =>
       request<Paginated<ProjectSummary>>(`/projects${toQuery(params)}`),
+    options: () => request<{ id: string; name: string | null; city: string | null }[]>('/projects/options'),
+    get: (id: string) => request<ProjectDetail>(`/projects/${id}`),
+    inventory: (id: string, params: Record<string, string | number | undefined> = {}) =>
+      request<{ summary: unknown; units: Property[]; meta: PaginationMeta }>(
+        `/projects/${id}/inventory${toQuery(params)}`,
+      ),
+    create: (payload: Record<string, unknown>) =>
+      request<ProjectDetail>('/projects', { method: 'POST', body: JSON.stringify(payload) }),
+    update: (id: string, payload: Record<string, unknown>) =>
+      request<ProjectDetail>(`/projects/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
+    archive: (id: string) => request<ProjectDetail>(`/projects/${id}/archive`, { method: 'POST' }),
+    restore: (id: string) => request<ProjectDetail>(`/projects/${id}/restore`, { method: 'POST' }),
+  },
+
+  data: {
+    exportCsv: async (entity: ImportEntity): Promise<string> => {
+      const response = await fetch(`${BASE}/data/export/${entity}`, { credentials: 'include' });
+      if (!response.ok) throw new ApiError(response.status, 'Export failed', null);
+      return response.text();
+    },
+    previewImport: (entity: ImportEntity, csv: string) =>
+      request<ImportPreview>(`/data/import/${entity}/preview`, {
+        method: 'POST',
+        body: JSON.stringify({ csv }),
+      }),
+    commitImport: (entity: ImportEntity, csv: string, excludeRows: number[]) =>
+      request<{ imported: number; skipped: number; failed: number }>(`/data/import/${entity}`, {
+        method: 'POST',
+        body: JSON.stringify({ csv, excludeRows }),
+      }),
   },
 };

@@ -11,6 +11,7 @@ import {
 import type { Request, Response } from 'express';
 import { z } from 'zod';
 import { validate } from '../common/zod-validation.pipe.js';
+import { guardedRateLimit } from '../common/rate-limit.guard.js';
 import { config } from '../config.js';
 import { AuthService } from './auth.service.js';
 import { CurrentUser } from './access.guard.js';
@@ -50,6 +51,7 @@ export class AuthController {
   constructor(private readonly auth: AuthService) {}
 
   @Post('login')
+  @UseGuards(guardedRateLimit(10, 15 * 60 * 1000))
   @HttpCode(200)
   async login(
     @Body(validate(loginSchema)) body: z.infer<typeof loginSchema>,
@@ -80,6 +82,7 @@ export class AuthController {
   }
 
   @Post('forgot-password')
+  @UseGuards(guardedRateLimit(5, 60 * 60 * 1000))
   @HttpCode(200)
   async forgotPassword(
     @Body(validate(forgotPasswordSchema)) body: z.infer<typeof forgotPasswordSchema>,

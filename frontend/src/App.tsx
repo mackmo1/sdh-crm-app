@@ -11,6 +11,11 @@ import { DashboardPage } from './pages/DashboardPage';
 import { LeadListPage } from './pages/LeadListPage';
 import { LeadDetailPage } from './pages/LeadDetailPage';
 import { LeadFormPage } from './pages/LeadFormPage';
+import { LeadEditPage } from './pages/LeadEditPage';
+import { PipelinePage } from './pages/PipelinePage';
+import { ProjectListPage } from './pages/ProjectListPage';
+import { ProjectDetailPage } from './pages/ProjectDetailPage';
+import { DataTransferPage } from './pages/DataTransferPage';
 import { ContactListPage } from './pages/ContactListPage';
 import { ContactDetailPage } from './pages/ContactDetailPage';
 import { FollowUpsPage } from './pages/FollowUpsPage';
@@ -36,13 +41,18 @@ export default function App() {
 
           <Route path="/leads" element={<LeadListPage />} />
           <Route path="/leads/new" element={<LeadFormPage />} />
+          <Route path="/pipeline" element={<PipelinePage />} />
           <Route path="/leads/:id" element={<LeadDetailPage />} />
+          <Route path="/leads/:id/edit" element={<LeadEditPage />} />
 
           <Route path="/contacts" element={<ContactListPage />} />
           <Route path="/contacts/:id" element={<ContactDetailPage />} />
 
           <Route path="/follow-ups" element={<FollowUpsPage />} />
+          <Route path="/projects" element={<ProjectListPage />} />
+          <Route path="/projects/:id" element={<ProjectDetailPage />} />
           <Route path="/site-visits" element={<SiteVisitsPage />} />
+          <Route path="/data" element={<DataTransferPage />} />
           <Route path="/reports" element={<ReportsPage />} />
           <Route path="/staff" element={<StaffPage />} />
 

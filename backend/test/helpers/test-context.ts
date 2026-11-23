@@ -60,7 +60,7 @@ export async function createTestApp(): Promise<TestContext> {
 
 export async function resetDatabase(prisma: PrismaService): Promise<void> {
   await prisma.$executeRawUnsafe(
-    'TRUNCATE TABLE "crm_lead_assignment", "crm_lead_stage_history", "crm_site_visit", ' +
+    'TRUNCATE TABLE "crm_import_run", "crm_change_history", "crm_lead_assignment", "crm_lead_stage_history", "crm_site_visit", ' +
       '"crm_follow_up_task", "crm_interaction", "crm_requirement_property", "crm_requirement", ' +
       '"Lead", "crm_contact", "property_archive", "sale_property", "rent_property", "property", ' +
       '"Crm_Session", "Crm_PasswordResetToken", "Crm_UserCredential", "Crm_User", "projects" ' +

@@ -75,6 +75,8 @@ model Project {
   usp             String?
   external_id     String?   @db.VarChar
   pricing_tiers   Json?
+  archived_at     DateTime? @db.Timestamptz(6)
+  updated_at      DateTime  @default(now()) @updatedAt @db.Timestamptz(6)
 
   properties Property[]
 
@@ -514,4 +516,35 @@ model LeadAssignment {
   @@index([lead_id, assigned_at])
   @@index([assigned_to])
   @@map("crm_lead_assignment")
+}
+
+/// Administrative change log. Only used where no dedicated history table exists
+/// (staff administration, project changes, imports); lead stages, assignments,
+/// interactions and property archiving keep their own purpose-built history.
+model ChangeHistory {
+  id          BigInt   @id @default(autoincrement())
+  entity_type String   @db.VarChar
+  entity_id   String   @db.VarChar
+  action      String   @db.VarChar
+  summary     String
+  changes     Json?
+  actor_id    String?  @db.VarChar
+  created_at  DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([entity_type, entity_id, created_at])
+  @@index([created_at])
+  @@map("crm_change_history")
+}
+
+model ImportRun {
+  id           BigInt   @id @default(autoincrement())
+  entity_type  String   @db.VarChar
+  imported     Int
+  skipped      Int
+  failed       Int
+  actor_id     String?  @db.VarChar
+  created_at   DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([created_at])
+  @@map("crm_import_run")
 }

@@ -24,7 +24,8 @@
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate deploy",
     "db:baseline": "prisma migrate resolve --applied 20260101120000_baseline_website_tables",
-    "admin:create": "node scripts/create-admin.mjs"
+    "admin:create": "node scripts/create-admin.mjs",
+    "seed:dev": "node scripts/seed-dev.mjs"
   },
   "dependencies": {
     "@nestjs/common": "^12.0.1",

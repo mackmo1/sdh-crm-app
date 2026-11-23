@@ -45,6 +45,10 @@ export const config = {
   get emailFrom(): string {
     return optional('EMAIL_FROM', 'Step360D CRM <no-reply@step360d.local>');
   },
+  get rateLimitEnabled(): boolean {
+    if (process.env.NODE_ENV === 'test') return false;
+    return optional('RATE_LIMIT_ENABLED', 'true') !== 'false';
+  },
   get databaseUrl(): string {
     return required('DATABASE_URL');
   },

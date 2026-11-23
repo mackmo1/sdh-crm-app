@@ -8,10 +8,13 @@ const NAV = [
   { to: '/', label: 'Dashboard', end: true },
   { to: '/properties', label: 'Properties' },
   { to: '/leads', label: 'Leads' },
+  { to: '/pipeline', label: 'Pipeline' },
   { to: '/contacts', label: 'Contacts' },
   { to: '/follow-ups', label: 'Follow-ups' },
   { to: '/site-visits', label: 'Site visits' },
+  { to: '/projects', label: 'Projects' },
   { to: '/reports', label: 'Reports' },
+  { to: '/data', label: 'Import / export' },
 ];
 
 export function AppShell() {

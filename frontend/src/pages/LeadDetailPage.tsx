@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { api, ApiError } from '../api/client';
 import type {
   InteractionType,
@@ -102,6 +102,7 @@ function useAction(onDone: (lead: LeadDetail) => void, onClose: () => void) {
 
 export function LeadDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const { notify } = useToast();
 
   const [lead, setLead] = useState<LeadDetail | null>(null);
@@ -190,6 +191,7 @@ export function LeadDetailPage() {
             </>
           )}
           {closed && <Button variant="primary" onClick={() => setDialog('reopen')}>Reopen lead</Button>}
+          <Button onClick={() => navigate(`/leads/${lead.id}/edit`)}>Edit</Button>
           <Button variant="ghost" onClick={() => setDialog('assign')}>Assign</Button>
         </div>
       </div>
