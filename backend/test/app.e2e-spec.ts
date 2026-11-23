@@ -1,29 +1,33 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { INestApplication } from '@nestjs/common';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import request from 'supertest';
-import { App } from 'supertest/types.js';
-import { AppModule } from './../src/app.module.js';
+import type { INestApplication } from '@nestjs/common';
+import { createTestApp, resetDatabase, type TestContext } from './helpers/test-context.js';
 
-describe('AppController (e2e)', () => {
-  let app: INestApplication<App>;
+describe('App (e2e)', () => {
+  let context: TestContext;
+  let app: INestApplication;
 
-  beforeEach(async () => {
-    const moduleFixture: TestingModule = await Test.createTestingModule({
-      imports: [AppModule],
-    }).compile();
-
-    app = moduleFixture.createNestApplication();
-    await app.init();
+  beforeAll(async () => {
+    context = await createTestApp();
+    app = context.app;
   });
 
-  it('/ (GET)', () => {
-    return request(app.getHttpServer())
-      .get('/')
-      .expect(200)
-      .expect('Hello World!');
-  });
-
-  afterEach(async () => {
+  afterAll(async () => {
+    await context.prisma.$disconnect();
     await app.close();
+  });
+
+  it('exposes a health endpoint', async () => {
+    const response = await request(app.getHttpServer()).get('/api/health').expect(200);
+    expect(response.body.status).toBe('ok');
+  });
+
+  it('rejects unauthenticated access to protected endpoints', async () => {
+    await request(app.getHttpServer()).get('/api/properties').expect(401);
+  });
+
+  it('resets the database between suites', async () => {
+    await resetDatabase(context.prisma);
+    expect(await context.prisma.property.count()).toBe(0);
   });
 });
