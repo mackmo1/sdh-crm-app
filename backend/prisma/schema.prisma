@@ -1,0 +1,550 @@
+// Step360D CRM — Prisma schema
+//
+// The CRM shares ONE PostgreSQL database with the public website. Two of the
+// tables below (`projects`, `property`) already exist there and are used by the
+// live website. They are declared here exactly as they exist, and every phase-1
+// change to `property` is additive (new nullable/defaulted columns only).
+//
+// Legacy columns that the website still reads are kept and kept in sync by the
+// application: `property.listing` (free-text 'buy' | 'rent') and
+// `property.project` (free-text project name). `property.status` is a legacy
+// free-text column that the website writes; the CRM does not read or write it.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum ListingType {
+  SALE
+  RENT
+}
+
+enum PublicationStatus {
+  DRAFT
+  PUBLISHED
+  UNPUBLISHED
+  ARCHIVED
+}
+
+enum AvailabilityStatus {
+  AVAILABLE
+  ON_HOLD
+  SOLD
+  RENTED
+}
+
+enum CrmModule {
+  all
+  lead
+  property
+}
+
+enum StaffRole {
+  admin
+  data_user
+}
+
+// ---------------------------------------------------------------------------
+// Pre-existing website tables
+// ---------------------------------------------------------------------------
+
+model Project {
+  id              BigInt    @id @default(autoincrement())
+  created_at      DateTime  @default(now()) @db.Timestamptz(6)
+  name            String?   @db.VarChar
+  address         String?   @db.VarChar
+  city            String?   @db.VarChar
+  google_location String?   @db.VarChar
+  overview_area   String?   @db.VarChar
+  near_by         String?
+  overview_floors String?   @db.VarChar
+  overview_rem1   String?   @db.VarChar
+  overview_rem2   String?   @db.VarChar
+  rooms           String?   @db.VarChar
+  area_sqft       String?   @db.VarChar
+  price_range     String?   @db.VarChar
+  usp             String?
+  external_id     String?   @db.VarChar
+  pricing_tiers   Json?
+  archived_at     DateTime? @db.Timestamptz(6)
+  updated_at      DateTime  @default(now()) @updatedAt @db.Timestamptz(6)
+
+  properties Property[]
+
+  @@map("projects")
+}
+
+/// Permanent master record for every listing. Shared by the website and the CRM.
+model Property {
+  id             BigInt   @id @default(autoincrement())
+  created_at     DateTime @default(now()) @db.Timestamptz(6)
+  listing        String   @db.VarChar
+  type           String?  @db.VarChar
+  city           String   @db.VarChar
+  project        String?  @db.VarChar
+  address        String   @db.VarChar
+  pin_code       String?  @db.VarChar
+  rooms          String   @db.VarChar
+  parking        Boolean?
+  price          Decimal  @db.Decimal
+  facing         String?  @db.VarChar
+  starting_dt    DateTime? @db.Date
+  user_id        BigInt?
+  area           BigInt?
+  status         String?  @db.VarChar
+  message        String?
+  external_id    String?  @db.VarChar
+  coverImagePath String?  @db.VarChar
+  bathrooms      Int?     @db.SmallInt
+
+  // --- Phase 1 additions -------------------------------------------------
+  listing_type        ListingType?
+  publication_status  PublicationStatus  @default(DRAFT)
+  availability_status AvailabilityStatus @default(AVAILABLE)
+  project_id          BigInt?
+  unit_identifier     String?            @db.VarChar
+  updated_at          DateTime           @default(now()) @updatedAt @db.Timestamptz(6)
+  published_at        DateTime?          @db.Timestamptz(6)
+
+  project_ref Project? @relation(fields: [project_id], references: [id], onDelete: SetNull)
+
+  sale         SaleProperty?
+  rent         RentProperty?
+  archiveEvents PropertyArchive[]
+
+  leadsSelected       Lead[]
+  requirementShortlist RequirementProperty[]
+  siteVisits          SiteVisit[]
+
+  @@unique([project_id, unit_identifier])
+  @@index([publication_status, listing_type, availability_status])
+  @@index([project_id])
+  @@index([created_at])
+  @@map("property")
+}
+
+// ---------------------------------------------------------------------------
+// Listing subtypes — one row per property, PK is also the FK to the master
+// ---------------------------------------------------------------------------
+
+model SaleProperty {
+  property_id      BigInt   @id
+  price_negotiable Boolean? @db.Boolean
+  ownership_type   String?  @db.VarChar
+  created_at       DateTime @default(now()) @db.Timestamptz(6)
+  updated_at       DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+
+  property Property @relation(fields: [property_id], references: [id], onDelete: Restrict)
+
+  @@map("sale_property")
+}
+
+model RentProperty {
+  property_id        BigInt   @id
+  deposit_amount     Decimal? @db.Decimal
+  maintenance_amount Decimal? @db.Decimal
+  furnishing         String?  @db.VarChar
+  created_at         DateTime @default(now()) @db.Timestamptz(6)
+  updated_at         DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+
+  property Property @relation(fields: [property_id], references: [id], onDelete: Restrict)
+
+  @@map("rent_property")
+}
+
+// ---------------------------------------------------------------------------
+// Archive — append-only event log, never updated or deleted
+// ---------------------------------------------------------------------------
+
+model PropertyArchive {
+  id                  BigInt            @id @default(autoincrement())
+  property_id         BigInt
+  listing_type        ListingType?
+  previous_status     PublicationStatus
+  previous_availability AvailabilityStatus
+  snapshot            Json
+  reason              String?
+  archived_at         DateTime          @default(now()) @db.Timestamptz(6)
+  archived_by         String?
+
+  property Property @relation(fields: [property_id], references: [id], onDelete: Restrict)
+  archived_by_user CrmUser? @relation(fields: [archived_by], references: [id], onDelete: Restrict)
+
+  @@index([property_id, archived_at])
+  @@map("property_archive")
+}
+
+// ---------------------------------------------------------------------------
+// Staff — one table only, exact profile shape as agreed
+// ---------------------------------------------------------------------------
+
+model CrmUser {
+  id         String      @id @default(uuid())
+  name       String      @db.VarChar
+  email      String      @unique @db.VarChar
+  module     CrmModule
+  role       StaffRole
+  active     Boolean     @default(true)
+  created_at DateTime    @default(now()) @db.Timestamptz(6)
+
+  credential  CrmUserCredential?
+  sessions    CrmSession[]
+  resetTokens CrmPasswordResetToken[]
+  archiveEvents PropertyArchive[]
+
+  @@map("Crm_User")
+}
+
+/// Credentials are deliberately kept out of Crm_User.
+model CrmUserCredential {
+  crm_user_id         String   @id
+  password_hash       String   @db.VarChar
+  password_updated_at DateTime @default(now()) @db.Timestamptz(6)
+
+  user CrmUser @relation(fields: [crm_user_id], references: [id], onDelete: Cascade)
+
+  @@map("Crm_UserCredential")
+}
+
+model CrmSession {
+  id           String    @id @default(uuid())
+  crm_user_id  String
+  token_hash   String    @unique @db.VarChar
+  expires_at   DateTime  @db.Timestamptz(6)
+  revoked_at   DateTime? @db.Timestamptz(6)
+  last_used_at DateTime? @db.Timestamptz(6)
+  created_at   DateTime  @default(now()) @db.Timestamptz(6)
+
+  user CrmUser @relation(fields: [crm_user_id], references: [id], onDelete: Cascade)
+
+  @@index([crm_user_id])
+  @@map("Crm_Session")
+}
+
+model CrmPasswordResetToken {
+  id          String    @id @default(uuid())
+  crm_user_id String
+  token_hash  String    @unique @db.VarChar
+  expires_at  DateTime  @db.Timestamptz(6)
+  used_at     DateTime? @db.Timestamptz(6)
+  created_at  DateTime  @default(now()) @db.Timestamptz(6)
+
+  user CrmUser @relation(fields: [crm_user_id], references: [id], onDelete: Cascade)
+
+  @@index([crm_user_id])
+  @@map("Crm_PasswordResetToken")
+}
+
+// ---------------------------------------------------------------------------
+// Phase 2 — CRM
+// ---------------------------------------------------------------------------
+
+enum ContactCategory {
+  BUYER
+  SELLER
+  LANDLORD
+  TENANT
+  BUILDER
+}
+
+enum LeadStage {
+  NEW
+  CONTACTED
+  QUALIFIED
+  SITE_VISIT
+  NEGOTIATION
+  ON_HOLD
+  WON
+  LOST
+}
+
+enum LeadPriority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum RequirementIntent {
+  BUY
+  SELL
+  RENT
+}
+
+enum InteractionType {
+  CALL
+  MEETING
+  MESSAGE
+  EMAIL
+  NOTE
+}
+
+enum TaskStatus {
+  OPEN
+  COMPLETED
+  CANCELLED
+}
+
+enum SiteVisitStatus {
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+enum ClosureOutcome {
+  SALE
+  RENT
+  LOST
+}
+
+/// Enquiries captured by the public website. Extended additively for the CRM;
+/// the website's own columns are preserved and still written by the site.
+model Lead {
+  id            BigInt   @id @default(autoincrement())
+  created_at    DateTime @default(now()) @db.Timestamptz(6)
+  who           String   @db.VarChar
+  intent        String   @db.VarChar
+  property_type String?  @db.VarChar
+  agent         String?  @db.VarChar
+  status        String?  @db.VarChar
+  name          String?  @db.VarChar
+  phone         String   @db.VarChar
+  email_id      String   @db.VarChar
+  location      String   @db.VarChar
+  message       String?
+  budget        String?  @db.VarChar
+  pin_no        String?  @db.VarChar
+  address       String?  @db.VarChar
+  bedrooms      String?  @db.VarChar
+
+  contact_id          BigInt?
+  assigned_to         String?       @db.VarChar
+  source              String?       @db.VarChar
+  priority            LeadPriority  @default(MEDIUM)
+  stage               LeadStage     @default(NEW)
+  on_hold_reason      String?
+  selected_property_id BigInt?
+  closed_at           DateTime?     @db.Timestamptz(6)
+  closure_outcome     ClosureOutcome?
+  loss_reason         String?
+  reopen_count        Int           @default(0)
+  updated_at          DateTime      @default(now()) @updatedAt @db.Timestamptz(6)
+
+  contact           Contact?  @relation(fields: [contact_id], references: [id], onDelete: SetNull)
+  selected_property Property? @relation(fields: [selected_property_id], references: [id], onDelete: SetNull)
+
+  requirements Requirement[]
+  interactions Interaction[]
+  tasks        FollowUpTask[]
+  siteVisits   SiteVisit[]
+  stageHistory LeadStageHistory[]
+  assignments  LeadAssignment[]
+
+  @@index([stage])
+  @@index([assigned_to])
+  @@index([created_at])
+  @@index([contact_id])
+  @@map("Lead")
+}
+
+model Contact {
+  id         BigInt          @id @default(autoincrement())
+  name       String          @db.VarChar
+  email      String?         @db.VarChar
+  phone      String?         @db.VarChar
+  category   ContactCategory
+  company    String?         @db.VarChar
+  city       String?         @db.VarChar
+  address    String?
+  notes      String?
+  active     Boolean         @default(true)
+  created_by String?         @db.VarChar
+  created_at DateTime        @default(now()) @db.Timestamptz(6)
+  updated_at DateTime        @default(now()) @updatedAt @db.Timestamptz(6)
+
+  leads        Lead[]
+  interactions Interaction[]
+  tasks        FollowUpTask[]
+
+  @@index([category])
+  @@index([name])
+  @@index([phone])
+  @@map("crm_contact")
+}
+
+model Requirement {
+  id            BigInt            @id @default(autoincrement())
+  lead_id       BigInt
+  intent        RequirementIntent
+  budget_min    Decimal?          @db.Decimal
+  budget_max    Decimal?          @db.Decimal
+  locations     String?           @db.VarChar
+  property_type String?           @db.VarChar
+  bedrooms      String?           @db.VarChar
+  timeframe     String?           @db.VarChar
+  notes         String?
+  active        Boolean           @default(true)
+  created_by    String?           @db.VarChar
+  created_at    DateTime          @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime          @default(now()) @updatedAt @db.Timestamptz(6)
+
+  lead      Lead                 @relation(fields: [lead_id], references: [id], onDelete: Cascade)
+  shortlist RequirementProperty[]
+
+  @@index([lead_id])
+  @@map("crm_requirement")
+}
+
+model RequirementProperty {
+  requirement_id BigInt
+  property_id    BigInt
+  added_by       String?  @db.VarChar
+  added_at       DateTime @default(now()) @db.Timestamptz(6)
+
+  requirement Requirement @relation(fields: [requirement_id], references: [id], onDelete: Cascade)
+  property    Property    @relation(fields: [property_id], references: [id], onDelete: Restrict)
+
+  @@id([requirement_id, property_id])
+  @@index([property_id])
+  @@map("crm_requirement_property")
+}
+
+model Interaction {
+  id           BigInt          @id @default(autoincrement())
+  lead_id      BigInt?
+  contact_id   BigInt?
+  type         InteractionType
+  occurred_at  DateTime        @default(now()) @db.Timestamptz(6)
+  summary      String
+  outcome      String?
+  next_action  String?
+  created_by   String?         @db.VarChar
+  created_at   DateTime        @default(now()) @db.Timestamptz(6)
+
+  lead    Lead?    @relation(fields: [lead_id], references: [id], onDelete: Cascade)
+  contact Contact? @relation(fields: [contact_id], references: [id], onDelete: Cascade)
+
+  @@index([lead_id, occurred_at])
+  @@index([contact_id, occurred_at])
+  @@map("crm_interaction")
+}
+
+model FollowUpTask {
+  id               BigInt     @id @default(autoincrement())
+  title            String     @db.VarChar
+  description      String?
+  lead_id          BigInt?
+  contact_id       BigInt?
+  assigned_to      String?    @db.VarChar
+  due_at           DateTime   @db.Timestamptz(6)
+  status           TaskStatus @default(OPEN)
+  completed_at     DateTime?  @db.Timestamptz(6)
+  completion_notes String?
+  next_action      String?
+  created_by       String?    @db.VarChar
+  created_at       DateTime   @default(now()) @db.Timestamptz(6)
+  updated_at       DateTime   @default(now()) @updatedAt @db.Timestamptz(6)
+
+  lead    Lead?    @relation(fields: [lead_id], references: [id], onDelete: Cascade)
+  contact Contact? @relation(fields: [contact_id], references: [id], onDelete: Cascade)
+
+  @@index([status, due_at])
+  @@index([assigned_to])
+  @@index([lead_id])
+  @@map("crm_follow_up_task")
+}
+
+model SiteVisit {
+  id               BigInt          @id @default(autoincrement())
+  lead_id          BigInt
+  property_id      BigInt
+  assigned_to      String?         @db.VarChar
+  scheduled_at     DateTime        @db.Timestamptz(6)
+  status           SiteVisitStatus @default(SCHEDULED)
+  feedback         String?
+  next_steps       String?
+  rescheduled_from DateTime?       @db.Timestamptz(6)
+  reschedule_count Int             @default(0)
+  completed_at     DateTime?       @db.Timestamptz(6)
+  created_by       String?         @db.VarChar
+  created_at       DateTime        @default(now()) @db.Timestamptz(6)
+  updated_at       DateTime        @default(now()) @updatedAt @db.Timestamptz(6)
+
+  lead     Lead     @relation(fields: [lead_id], references: [id], onDelete: Cascade)
+  property Property @relation(fields: [property_id], references: [id], onDelete: Restrict)
+
+  @@index([status, scheduled_at])
+  @@index([lead_id])
+  @@index([property_id])
+  @@map("crm_site_visit")
+}
+
+model LeadStageHistory {
+  id         BigInt    @id @default(autoincrement())
+  lead_id    BigInt
+  from_stage LeadStage?
+  to_stage   LeadStage
+  reason     String?
+  changed_by String?   @db.VarChar
+  changed_at DateTime  @default(now()) @db.Timestamptz(6)
+
+  lead Lead @relation(fields: [lead_id], references: [id], onDelete: Cascade)
+
+  @@index([lead_id, changed_at])
+  @@map("crm_lead_stage_history")
+}
+
+model LeadAssignment {
+  id          BigInt    @id @default(autoincrement())
+  lead_id     BigInt
+  assigned_to String    @db.VarChar
+  assigned_by String?   @db.VarChar
+  assigned_at DateTime  @default(now()) @db.Timestamptz(6)
+  ended_at    DateTime? @db.Timestamptz(6)
+
+  lead Lead @relation(fields: [lead_id], references: [id], onDelete: Cascade)
+
+  @@index([lead_id, assigned_at])
+  @@index([assigned_to])
+  @@map("crm_lead_assignment")
+}
+
+/// Administrative change log. Only used where no dedicated history table exists
+/// (staff administration, project changes, imports); lead stages, assignments,
+/// interactions and property archiving keep their own purpose-built history.
+model ChangeHistory {
+  id          BigInt   @id @default(autoincrement())
+  entity_type String   @db.VarChar
+  entity_id   String   @db.VarChar
+  action      String   @db.VarChar
+  summary     String
+  changes     Json?
+  actor_id    String?  @db.VarChar
+  created_at  DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([entity_type, entity_id, created_at])
+  @@index([created_at])
+  @@map("crm_change_history")
+}
+
+model ImportRun {
+  id           BigInt   @id @default(autoincrement())
+  entity_type  String   @db.VarChar
+  imported     Int
+  skipped      Int
+  failed       Int
+  actor_id     String?  @db.VarChar
+  created_at   DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([created_at])
+  @@map("crm_import_run")
+}
