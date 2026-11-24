@@ -1,7 +1,8 @@
-import { useEffect, useId } from 'react';
+import { useEffect, useId, useState } from 'react';
 import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode, SelectHTMLAttributes, TextareaHTMLAttributes } from 'react';
 import type { PaginationMeta } from '../api/types';
 import type { BadgeTone } from '../lib/status';
+import { IconEye, IconEyeOff } from './icons';
 
 /* ------------------------------------------------------------------ field */
 
@@ -53,6 +54,37 @@ export function TextArea({
   ...props
 }: TextareaHTMLAttributes<HTMLTextAreaElement> & { invalid?: boolean }) {
   return <textarea {...props} className={`textarea${invalid ? ' invalid' : ''}`} />;
+}
+
+/**
+ * Password field with a show/hide control. The toggle is a real button so it
+ * is reachable by keyboard and announced correctly to assistive technology.
+ */
+export function PasswordInput({
+  className,
+  ...props
+}: InputHTMLAttributes<HTMLInputElement>) {
+  const [visible, setVisible] = useState(false);
+
+  return (
+    <div className="password-field">
+      <input
+        {...props}
+        type={visible ? 'text' : 'password'}
+        className={`input password-input${className ? ` ${className}` : ''}`}
+      />
+      <button
+        type="button"
+        className="password-toggle"
+        onClick={() => setVisible((current) => !current)}
+        aria-label={visible ? 'Hide password' : 'Show password'}
+        aria-pressed={visible}
+        title={visible ? 'Hide password' : 'Show password'}
+      >
+        {visible ? <IconEyeOff size={16} /> : <IconEye size={16} />}
+      </button>
+    </div>
+  );
 }
 
 /* ------------------------------------------------------------------ badge */

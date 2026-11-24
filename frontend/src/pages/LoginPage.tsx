@@ -4,7 +4,7 @@ import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { ApiError } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import { AuthLayout } from '../components/AuthLayout';
-import { Button, Field, TextInput } from '../components/ui';
+import { Button, Field, PasswordInput, TextInput } from '../components/ui';
 
 export function LoginPage() {
   const { user, loading, login } = useAuth();
@@ -61,9 +61,8 @@ export function LoginPage() {
         </Field>
 
         <Field label="Password" htmlFor="password">
-          <TextInput
+          <PasswordInput
             id="password"
-            type="password"
             autoComplete="current-password"
             value={password}
             onChange={(event) => setPassword(event.target.value)}

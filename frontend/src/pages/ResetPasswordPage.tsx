@@ -3,7 +3,7 @@ import type { FormEvent } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { api, ApiError } from '../api/client';
 import { AuthLayout } from '../components/AuthLayout';
-import { Button, Field, TextInput } from '../components/ui';
+import { Button, Field, PasswordInput } from '../components/ui';
 
 export function ResetPasswordPage() {
   const [searchParams] = useSearchParams();
@@ -65,9 +65,8 @@ export function ResetPasswordPage() {
         {error && <div className="alert alert-error">{error}</div>}
 
         <Field label="New password" htmlFor="password" hint="At least 8 characters.">
-          <TextInput
+          <PasswordInput
             id="password"
-            type="password"
             autoComplete="new-password"
             value={password}
             onChange={(event) => setPassword(event.target.value)}
@@ -77,9 +76,8 @@ export function ResetPasswordPage() {
         </Field>
 
         <Field label="Confirm new password" htmlFor="confirm">
-          <TextInput
+          <PasswordInput
             id="confirm"
-            type="password"
             autoComplete="new-password"
             value={confirm}
             onChange={(event) => setConfirm(event.target.value)}

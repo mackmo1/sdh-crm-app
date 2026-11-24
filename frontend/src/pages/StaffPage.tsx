@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { api, ApiError } from '../api/client';
 import type { CrmModule, Paginated, StaffMember, StaffRole } from '../api/types';
 import { useToast } from '../components/Toast';
-import { Badge, Button, EmptyState, Field, Select, SkeletonRows, TextInput } from '../components/ui';
+import { Badge, Button, EmptyState, Field, PasswordInput, Select, SkeletonRows, TextInput } from '../components/ui';
 import { formatDate } from '../lib/format';
 
 const ROLES: StaffRole[] = ['admin', 'data_user'];
@@ -205,7 +205,7 @@ export function StaffPage() {
                 hint={creating ? 'At least 8 characters.' : 'Leave blank to keep the current password.'}
                 className="span-2"
               >
-                <TextInput id="staffPassword" type="password" value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} autoComplete="new-password" />
+                <PasswordInput id="staffPassword" value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} autoComplete="new-password" />
               </Field>
               {editing && (
                 <div className="checkbox-row" style={{ paddingTop: 0 }}>

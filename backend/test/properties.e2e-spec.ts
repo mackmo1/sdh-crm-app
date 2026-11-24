@@ -292,6 +292,21 @@ describe('Property lifecycle (e2e)', () => {
       expect(response.body.message).toContain('Archived');
     });
 
+    it('archives through DELETE without destroying the record', async () => {
+      const property = await createProperty();
+
+      const response = await agent.delete(`/api/properties/${property.id}`).expect(200);
+      expect(response.body.publicationStatus).toBe('ARCHIVED');
+
+      // The original contract asks for a DELETE endpoint; archiving stays
+      // non-destructive, so the master and the subtype survive.
+      expect(await context.prisma.property.count()).toBe(1);
+      expect(await context.prisma.saleProperty.count()).toBe(1);
+      expect(await context.prisma.propertyArchive.count()).toBe(1);
+
+      await agent.delete(`/api/properties/${property.id}`).expect(409);
+    });
+
     it('refuses to archive twice without restoring', async () => {
       const property = await createProperty();
       await agent.post(`/api/properties/${property.id}/archive`).send({}).expect(200);

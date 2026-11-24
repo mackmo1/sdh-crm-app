@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   Param,
@@ -66,6 +67,17 @@ export class PropertiesController {
   @HttpCode(200)
   unpublish(@Param('id') id: string) {
     return this.properties.unpublish(parseId(id));
+  }
+
+  /**
+   * `DELETE` is the verb the original Admin Portal contract asked for. It maps
+   * onto the same non-destructive archive operation: the master record, its
+   * subtype and a full snapshot are retained.
+   */
+  @Delete(':id')
+  @HttpCode(200)
+  archiveViaDelete(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.properties.archive(parseId(id), user.id);
   }
 
   @Post(':id/archive')

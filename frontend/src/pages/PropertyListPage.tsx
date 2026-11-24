@@ -67,6 +67,7 @@ export function PropertyListPage() {
   const publicationStatus = (searchParams.get('publicationStatus') ?? '') as PublicationStatus | '';
   const availabilityStatus = (searchParams.get('availabilityStatus') ?? '') as AvailabilityStatus | '';
   const projectId = searchParams.get('projectId') ?? '';
+  const view = searchParams.get('view') === 'table' ? 'table' : 'cards';
   const search = searchParams.get('search') ?? '';
 
   const [searchInput, setSearchInput] = useState(search);
@@ -311,6 +312,25 @@ export function PropertyListPage() {
             ))}
           </Select>
 
+          <div className="segmented" role="group" aria-label="Layout">
+            <button
+              type="button"
+              className={view === 'cards' ? 'selected' : ''}
+              onClick={() => updateParams({ view: undefined })}
+              aria-pressed={view === 'cards'}
+            >
+              Cards
+            </button>
+            <button
+              type="button"
+              className={view === 'table' ? 'selected' : ''}
+              onClick={() => updateParams({ view: 'table' })}
+              aria-pressed={view === 'table'}
+            >
+              Table
+            </button>
+          </div>
+
           {hasFilters && (
             <Button variant="ghost" size="sm" onClick={clearFilters}>
               Clear
@@ -342,6 +362,100 @@ export function PropertyListPage() {
           />
         ) : result ? (
           <>
+            {view === 'table' ? (
+              <div className="table-scroll">
+                <table className="table">
+                  <thead>
+                    <tr>
+                      <th>Property</th>
+                      <th>Listing</th>
+                      <th>Configuration</th>
+                      <th>Price</th>
+                      <th>Project</th>
+                      <th>Publication</th>
+                      <th>Availability</th>
+                      <th>Updated</th>
+                      <th aria-label="Actions" />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {result.data.map((property) => {
+                      const archived = property.publicationStatus === 'ARCHIVED';
+                      return (
+                        <tr
+                          key={property.id}
+                          className="clickable"
+                          onClick={() => navigate(`/properties/${property.id}`)}
+                        >
+                          <td>
+                            <Link
+                              to={`/properties/${property.id}`}
+                              className="cell-primary"
+                              onClick={(event) => event.stopPropagation()}
+                            >
+                              {property.address}
+                            </Link>
+                            <span className="cell-secondary">{property.city}</span>
+                          </td>
+                          <td>
+                            {property.listingType ? LISTING_LABEL[property.listingType] : '—'}
+                            {property.type ? <span className="cell-secondary"> · {property.type}</span> : null}
+                          </td>
+                          <td>{property.rooms}</td>
+                          <td>{formatPrice(property.price)}</td>
+                          <td>
+                            {property.projectName ?? <span className="subtle">—</span>}
+                            {property.unitIdentifier ? (
+                              <span className="cell-secondary"> · {property.unitIdentifier}</span>
+                            ) : null}
+                          </td>
+                          <td>
+                            <Badge tone={PUBLICATION_TONE[property.publicationStatus]}>
+                              {PUBLICATION_LABEL[property.publicationStatus]}
+                            </Badge>
+                          </td>
+                          <td>
+                            <Badge tone={AVAILABILITY_TONE[property.availabilityStatus]}>
+                              {AVAILABILITY_LABEL[property.availabilityStatus]}
+                            </Badge>
+                          </td>
+                          <td>
+                            <span className="cell-secondary">{relativeTime(property.updatedAt)}</span>
+                          </td>
+                          <td onClick={(event) => event.stopPropagation()}>
+                            <div className="cell-actions">
+                              {archived ? (
+                                <Button size="sm" variant="ghost" onClick={() => openAction('restore', property)}>
+                                  Restore
+                                </Button>
+                              ) : (
+                                <>
+                                  {property.publicationStatus === 'PUBLISHED' ? (
+                                    <Button size="sm" variant="ghost" onClick={() => openAction('unpublish', property)}>
+                                      Unpublish
+                                    </Button>
+                                  ) : (
+                                    <Button size="sm" variant="ghost" onClick={() => openAction('publish', property)}>
+                                      Publish
+                                    </Button>
+                                  )}
+                                  <Button size="sm" variant="ghost" onClick={() => navigate(`/properties/${property.id}/edit`)}>
+                                    Edit
+                                  </Button>
+                                  <Button size="sm" variant="danger-ghost" onClick={() => openAction('archive', property)}>
+                                    Archive
+                                  </Button>
+                                </>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
             <div className="property-list">
               {result.data.map((property) => {
                 const archived = property.publicationStatus === 'ARCHIVED';
@@ -421,6 +535,7 @@ export function PropertyListPage() {
               })}
             </div>
 
+            )}
             <Pagination
               meta={result.meta}
               disabled={loading}
